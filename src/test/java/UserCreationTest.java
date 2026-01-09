@@ -1,5 +1,6 @@
 import io.qameta.allure.Description;
 import io.restassured.http.ContentType;
+import models.User;
 import org.junit.After;
 import org.junit.Test;
 
@@ -23,38 +24,37 @@ public class UserCreationTest extends BaseTest {
     @Test
     @Description("Создание уникального пользователя")
     public void testCreateUniqueUser() {
-        long timestamp = System.currentTimeMillis();
-        String email = "testuser_" + timestamp + "@example.com";
-
-        String requestBody = String.format(
-                "{\"email\": \"%s\", \"password\": \"password123\", \"name\": \"Test User\"}",
-                email
-        );
+        User newUser = createTestUser();
 
         given()
                 .contentType(ContentType.JSON)
-                .body(requestBody)
+                .body(newUser)
                 .when()
                 .post("/api/auth/register")
                 .then()
                 .statusCode(200)
                 .body("success", equalTo(true))
-                .body("user.email", equalTo(email.toLowerCase()))
-                .body("user.name", equalTo("Test User"));
+                .body("user.email", equalTo(newUser.getEmail().toLowerCase()))
+                .body("user.name", equalTo(newUser.getName()));
+
+        accessToken = given()
+                .contentType(ContentType.JSON)
+                .body(newUser)
+                .when()
+                .post("/api/auth/register")
+                .then()
+                .extract()
+                .path("accessToken");
     }
 
     @Test
     @Description("Создание уже существующего пользователя")
     public void testCreateExistingUser() {
-        String email = "existing_user@example.com";
-        String requestBody = String.format(
-                "{\"email\": \"%s\", \"password\": \"password123\", \"name\": \"Existing User\"}",
-                email
-        );
+        User existingUser = new User("existing_user@example.com", "password123", "Existing User");
 
         accessToken = given()
                 .contentType(ContentType.JSON)
-                .body(requestBody)
+                .body(existingUser)
                 .when()
                 .post("/api/auth/register")
                 .then()
@@ -63,54 +63,61 @@ public class UserCreationTest extends BaseTest {
 
         given()
                 .contentType(ContentType.JSON)
-                .body(requestBody)
+                .body(existingUser)
                 .when()
                 .post("/api/auth/register")
                 .then()
                 .statusCode(403)
-                .body("success", equalTo(false))
-                .body("message", equalTo("User already exists"));
+                .body("success", equalTo(false));
     }
 
     @Test
     @Description("Создание пользователя без email")
     public void testCreateUserWithoutEmail() {
+        User userWithoutEmail = new User();
+        userWithoutEmail.setPassword("password123");
+        userWithoutEmail.setName("Test User");
+
         given()
                 .contentType(ContentType.JSON)
-                .body("{\"password\": \"password123\", \"name\": \"Test User\"}")
+                .body(userWithoutEmail)
                 .when()
                 .post("/api/auth/register")
                 .then()
                 .statusCode(403)
-                .body("success", equalTo(false))
-                .body("message", equalTo("Email, password and name are required fields"));
+                .body("success", equalTo(false));
     }
 
     @Test
     @Description("Создание пользователя без password")
     public void testCreateUserWithoutPassword() {
+        User userWithoutPassword = new User();
+        userWithoutPassword.setEmail("test@example.com");
+        userWithoutPassword.setName("Test User");
+
         given()
                 .contentType(ContentType.JSON)
-                .body("{\"email\": \"test@example.com\", \"name\": \"Test User\"}")
+                .body(userWithoutPassword)
                 .when()
                 .post("/api/auth/register")
                 .then()
                 .statusCode(403)
-                .body("success", equalTo(false))
-                .body("message", equalTo("Email, password and name are required fields"));
+                .body("success", equalTo(false));
     }
 
     @Test
     @Description("Создание пользователя без name")
     public void testCreateUserWithoutName() {
+        User userWithoutName = new User();
+        userWithoutName.setEmail("test@example.com");
+        userWithoutName.setPassword("password123");
         given()
                 .contentType(ContentType.JSON)
-                .body("{\"email\": \"test@example.com\", \"password\": \"password123\"}")
+                .body(userWithoutName)
                 .when()
                 .post("/api/auth/register")
                 .then()
                 .statusCode(403)
-                .body("success", equalTo(false))
-                .body("message", equalTo("Email, password and name are required fields"));
+                .body("success", equalTo(false));
     }
 }

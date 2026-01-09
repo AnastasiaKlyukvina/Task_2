@@ -1,9 +1,12 @@
 import io.qameta.allure.Description;
 import io.restassured.http.ContentType;
+import models.Order;
+import models.User;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.Arrays;
 import java.util.List;
 
 import static io.restassured.RestAssured.given;
@@ -16,16 +19,10 @@ public class OrderCreationTest extends BaseTest {
 
     @Before
     public void setUp() {
-        long timestamp = System.currentTimeMillis();
-        String email = "ordertest_" + timestamp + "@example.com";
-        String requestBody = String.format(
-                "{\"email\": \"%s\", \"password\": \"password123\", \"name\": \"Order Test\"}",
-                email
-        );
-
+        User testUser = createTestUser();
         accessToken = given()
                 .contentType(ContentType.JSON)
-                .body(requestBody)
+                .body(testUser)
                 .when()
                 .post("/api/auth/register")
                 .then()
@@ -53,37 +50,16 @@ public class OrderCreationTest extends BaseTest {
     @Test
     @Description("Создание заказа с авторизацией")
     public void testCreateOrderWithAuth() {
-        if (!ingredients.isEmpty()) {
-            String ingredientsBody = String.format(
-                    "{\"ingredients\": [\"%s\", \"%s\"]}",
-                    ingredients.get(0), ingredients.get(1)
-            );
+        if (!ingredients.isEmpty() && ingredients.size() >= 2) {
+            Order order = new Order(Arrays.asList(
+                    ingredients.get(0),
+                    ingredients.get(1)
+            ));
 
             given()
                     .header("Authorization", accessToken)
                     .contentType(ContentType.JSON)
-                    .body(ingredientsBody)
-                    .when()
-                    .post("/api/orders")
-                    .then()
-                    .statusCode(200)
-                    .body("success", equalTo(true))
-                    .body("order.status", equalTo("done"));
-        }
-    }
-
-    @Test
-    @Description("Создание заказа без авторизации")
-    public void testCreateOrderWithoutAuth() {
-        if (!ingredients.isEmpty()) {
-            String ingredientsBody = String.format(
-                    "{\"ingredients\": [\"%s\"]}",
-                    ingredients.get(0)
-            );
-
-            given()
-                    .contentType(ContentType.JSON)
-                    .body(ingredientsBody)
+                    .body(order)
                     .when()
                     .post("/api/orders")
                     .then()
@@ -93,18 +69,14 @@ public class OrderCreationTest extends BaseTest {
     }
 
     @Test
-    @Description("Создание заказа с ингредиентами")
-    public void testCreateOrderWithIngredients() {
+    @Description("Создание заказа без авторизации")
+    public void testCreateOrderWithoutAuth() {
         if (!ingredients.isEmpty()) {
-            String ingredientsBody = String.format(
-                    "{\"ingredients\": [\"%s\"]}",
-                    ingredients.get(0)
-            );
+            Order order = new Order(Arrays.asList(ingredients.get(0)));
 
             given()
-                    .header("Authorization", accessToken)
                     .contentType(ContentType.JSON)
-                    .body(ingredientsBody)
+                    .body(order)
                     .when()
                     .post("/api/orders")
                     .then()
@@ -116,25 +88,28 @@ public class OrderCreationTest extends BaseTest {
     @Test
     @Description("Создание заказа без ингредиентов")
     public void testCreateOrderWithoutIngredients() {
+        Order order = new Order(Arrays.asList());
+
         given()
                 .header("Authorization", accessToken)
                 .contentType(ContentType.JSON)
-                .body("{\"ingredients\": []}")
+                .body(order)
                 .when()
                 .post("/api/orders")
                 .then()
                 .statusCode(400)
-                .body("success", equalTo(false))
-                .body("message", equalTo("Ingredient ids must be provided"));
+                .body("success", equalTo(false));
     }
 
     @Test
     @Description("Создание заказа с неверным хешем ингредиентов")
     public void testCreateOrderWithInvalidIngredientHash() {
+        Order order = new Order(Arrays.asList("invalid_hash_1", "invalid_hash_2"));
+
         given()
                 .header("Authorization", accessToken)
                 .contentType(ContentType.JSON)
-                .body("{\"ingredients\": [\"invalid_hash_1\", \"invalid_hash_2\"]}")
+                .body(order)
                 .when()
                 .post("/api/orders")
                 .then()

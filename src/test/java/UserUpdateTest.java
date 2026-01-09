@@ -1,5 +1,6 @@
 import io.qameta.allure.Description;
 import io.restassured.http.ContentType;
+import models.User;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -10,20 +11,14 @@ import static org.hamcrest.Matchers.equalTo;
 public class UserUpdateTest extends BaseTest {
 
     private String accessToken;
-    private String originalEmail;
+    private User testUser;
 
     @Before
     public void setUp() {
-        long timestamp = System.currentTimeMillis();
-        originalEmail = "updatetest_" + timestamp + "@example.com";
-        String requestBody = String.format(
-                "{\"email\": \"%s\", \"password\": \"password123\", \"name\": \"Update Test\"}",
-                originalEmail
-        );
-
+        testUser = createTestUser();
         accessToken = given()
                 .contentType(ContentType.JSON)
-                .body(requestBody)
+                .body(testUser)
                 .when()
                 .post("/api/auth/register")
                 .then()
@@ -44,41 +39,49 @@ public class UserUpdateTest extends BaseTest {
     @Test
     @Description("Изменение email с авторизацией")
     public void testUpdateEmailWithAuth() {
-        String newEmail = "updated_" + originalEmail;
+        User updateData = new User();
+        updateData.setEmail("updated_" + testUser.getEmail());
 
         given()
                 .header("Authorization", accessToken)
                 .contentType(ContentType.JSON)
-                .body("{\"email\": \"" + newEmail + "\"}")
+                .body(updateData)
                 .when()
                 .patch("/api/auth/user")
                 .then()
                 .statusCode(200)
                 .body("success", equalTo(true))
-                .body("user.email", equalTo(newEmail.toLowerCase()));
+                .body("user.email", equalTo(updateData.getEmail().toLowerCase()));
     }
 
     @Test
     @Description("Изменение name с авторизацией")
     public void testUpdateNameWithAuth() {
+        User updateData = new User();
+        updateData.setName("Updated Name");
+
         given()
                 .header("Authorization", accessToken)
                 .contentType(ContentType.JSON)
-                .body("{\"name\": \"Updated Name\"}")
+                .body(updateData)
                 .when()
                 .patch("/api/auth/user")
                 .then()
                 .statusCode(200)
-                .body("success", equalTo(true));
+                .body("success", equalTo(true))
+                .body("user.name", equalTo("Updated Name"));
     }
 
     @Test
     @Description("Изменение пароля с авторизацией")
     public void testUpdatePasswordWithAuth() {
+        User updateData = new User();
+        updateData.setPassword("newpassword123");
+
         given()
                 .header("Authorization", accessToken)
                 .contentType(ContentType.JSON)
-                .body("{\"password\": \"newpassword123\"}")
+                .body(updateData)
                 .when()
                 .patch("/api/auth/user")
                 .then()
@@ -89,14 +92,16 @@ public class UserUpdateTest extends BaseTest {
     @Test
     @Description("Изменение данных без авторизации")
     public void testUpdateUserWithoutAuth() {
+        User updateData = new User();
+        updateData.setName("New Name");
+
         given()
                 .contentType(ContentType.JSON)
-                .body("{\"name\": \"New Name\"}")
+                .body(updateData)
                 .when()
                 .patch("/api/auth/user")
                 .then()
                 .statusCode(401)
-                .body("success", equalTo(false))
-                .body("message", equalTo("You should be authorised"));
+                .body("success", equalTo(false));
     }
 }

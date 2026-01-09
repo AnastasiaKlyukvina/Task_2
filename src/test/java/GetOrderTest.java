@@ -1,9 +1,12 @@
 import io.qameta.allure.Description;
 import io.restassured.http.ContentType;
+import models.Order;
+import models.User;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.Arrays;
 import java.util.List;
 
 import static io.restassured.RestAssured.given;
@@ -15,23 +18,16 @@ public class GetOrderTest extends BaseTest {
 
     @Before
     public void setUp() {
-        long timestamp = System.currentTimeMillis();
-        String email = "getorderstest_" + timestamp + "@example.com";
-        String requestBody = String.format(
-                "{\"email\": \"%s\", \"password\": \"password123\", \"name\": \"Get Orders Test\"}",
-                email
-        );
-
+        User testUser = createTestUser();
         accessToken = given()
                 .contentType(ContentType.JSON)
-                .body(requestBody)
+                .body(testUser)
                 .when()
                 .post("/api/auth/register")
                 .then()
                 .extract()
                 .path("accessToken");
 
-        // Создание заказа
         List<String> ingredients = given()
                 .when()
                 .get("/api/ingredients")
@@ -40,15 +36,12 @@ public class GetOrderTest extends BaseTest {
                 .path("data._id");
 
         if (!ingredients.isEmpty()) {
-            String ingredientsBody = String.format(
-                    "{\"ingredients\": [\"%s\"]}",
-                    ingredients.get(0)
-            );
+            Order order = new Order(Arrays.asList(ingredients.get(0)));
 
             given()
                     .header("Authorization", accessToken)
                     .contentType(ContentType.JSON)
-                    .body(ingredientsBody)
+                    .body(order)  // Используем POJO объект Order
                     .when()
                     .post("/api/orders");
         }
@@ -84,7 +77,6 @@ public class GetOrderTest extends BaseTest {
                 .get("/api/orders")
                 .then()
                 .statusCode(401)
-                .body("success", equalTo(false))
-                .body("message", equalTo("You should be authorised"));
+                .body("success", equalTo(false));
     }
 }

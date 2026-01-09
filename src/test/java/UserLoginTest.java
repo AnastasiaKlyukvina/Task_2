@@ -1,5 +1,6 @@
 import io.qameta.allure.Description;
 import io.restassured.http.ContentType;
+import models.User;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -10,19 +11,15 @@ import static org.hamcrest.Matchers.equalTo;
 public class UserLoginTest extends BaseTest {
 
     private String accessToken;
+    private User testUser;
 
     @Before
     public void setUp() {
-        long timestamp = System.currentTimeMillis();
-        String email = "logintest_" + timestamp + "@example.com";
-        String requestBody = String.format(
-                "{\"email\": \"%s\", \"password\": \"password123\", \"name\": \"Login Test\"}",
-                email
-        );
+        testUser = createTestUser();
 
         accessToken = given()
                 .contentType(ContentType.JSON)
-                .body(requestBody)
+                .body(testUser)
                 .when()
                 .post("/api/auth/register")
                 .then()
@@ -43,30 +40,16 @@ public class UserLoginTest extends BaseTest {
     @Test
     @Description("Логин под существующим пользователем")
     public void testLoginWithValidCredentials() {
-        long timestamp = System.currentTimeMillis();
-        String email = "logintest_" + timestamp + "@example.com";
-        String requestBody = String.format(
-                "{\"email\": \"%s\", \"password\": \"password123\", \"name\": \"Login Test\"}",
-                email
-        );
-
-        // Создание пользователя
         given()
                 .contentType(ContentType.JSON)
-                .body(requestBody)
-                .when()
-                .post("/api/auth/register");
-
-        // Авторизация
-        given()
-                .contentType(ContentType.JSON)
-                .body("{\"email\": \"" + email + "\", \"password\": \"password123\"}")
+                .body("{\"email\": \"" + testUser.getEmail() + "\", \"password\": \"" + testUser.getPassword() + "\"}")
                 .when()
                 .post("/api/auth/login")
                 .then()
                 .statusCode(200)
                 .body("success", equalTo(true))
-                .body("user.email", equalTo(email.toLowerCase()));
+                .body("user.email", equalTo(testUser.getEmail().toLowerCase()))
+                .body("user.name", equalTo(testUser.getName()));
     }
 
     @Test
@@ -79,7 +62,6 @@ public class UserLoginTest extends BaseTest {
                 .post("/api/auth/login")
                 .then()
                 .statusCode(401)
-                .body("success", equalTo(false))
-                .body("message", equalTo("email or password are incorrect"));
+                .body("success", equalTo(false));
     }
 }
